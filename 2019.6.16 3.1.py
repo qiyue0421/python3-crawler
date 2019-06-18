@@ -89,7 +89,7 @@ proxy_handler = ProxyHandler({
     'https': 'https://127.0.0.1:9743'  # 参数为一个字典，键名是协议类型（http https），键值为代理链接
 })
 opener = build_opener(proxy_handler)  # 构造opener
-try:
+try:  # 异常处理模块
     response = opener.open('https://www.baidu.com')
     print(response.read().decode('utf-8'))
 except URLError as e:
