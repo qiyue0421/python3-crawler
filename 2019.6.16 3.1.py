@@ -8,6 +8,8 @@ from urllib.error import URLError
 from urllib.request import HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler, build_opener, ProxyHandler
 import http.cookiejar
 
+
+"""发送请求"""
 """urlopen()方法
 response = urllib.request.urlopen('https://www.python.org')  # 抓取python官网
 print(response.read().decode('utf-8'))
@@ -125,4 +127,25 @@ handler = urllib.request.HTTPCookieProcessor(cookie)
 opener = build_opener(handler)
 response = opener.open('http://wwww.baidu.com')
 print(response.read().decode('utf-8'))
+"""
+
+
+"""处理异常"""
+"""URLError
+try:
+    response = urllib.request.urlopen('http://www.imooc.com/qiyue.html')
+except URLError as e:  # URLError类继承自OSError这个异常模块的基类，由request模块产生的异常都可以通过捕获这个异常来处理
+    print(e.reason)  # reason属性
+"""
+
+
+"""HTTPError
+try:
+    urllib.request.urlopen('http://www.imooc.com/qiyue.html')
+except urllib.error.HTTPError as e:  # HTTPError是URLError的子类，专门用来处理HTTP请求错误，比如认证失败
+    print(e.reason, e.code, e.headers, sep='\n')   # 查看类中的三个属性，分别输出错误原因、HTTP返回状态码、请求头
+except urllib.error.URLError as e:  # 捕获完子类的异常后，再去捕获父类的错误
+    print(e.reason)
+else:  # 处理正常的逻辑
+    print('Request Successfully')
 """
