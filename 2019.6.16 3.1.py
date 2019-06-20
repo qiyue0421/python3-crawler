@@ -1,7 +1,8 @@
 # 2019/6/13 开始学习爬虫
-# urllib基本用法
+# urllib库基本用法
+
 import urllib.request
-import urllib.parse
+import urllib.parse   # parse模块定义了处理URL的标准接口
 import urllib.error
 import socket
 from urllib.error import URLError
@@ -148,4 +149,31 @@ except urllib.error.URLError as e:  # 捕获完子类的异常后，再去捕获
     print(e.reason)
 else:  # 处理正常的逻辑
     print('Request Successfully')
+"""
+
+
+"""解析链接"""
+"""urlparse()
+result = urllib.parse.urlparse('http://www.baidu.com/index.html;user?id=5#comment')  # parse模块定义了处理URL的标准接口，urlparse()方法实现URL的识别和分段
+print(type(result), result)
+# 输出为：
+# <class 'urllib.parse.ParseResult'>  # 返回一个ParseResult对象，实际上是一个元组，可以用索引顺序获取，也可以用属性名获取
+# ParseResult(scheme='http', netloc='www.baidu.com', path='/index.html', params='user', query='id=5', fragment='comment')
+#
+# scheme:协议
+# netloc:域名
+# path:访问路径
+# params:参数
+# query:查询条件
+# fragment:锚点，用于直接定位页面内部的下拉位置
+#
+# 一个标准的链接格式：scheme://netloc/path;params?query#fragment
+"""
+
+
+"""urlunparse()
+data = ['https', 'www.baidu.com', 'index.html', 'user', 'a=6', 'comment']  # 接受的参数为一个可迭代对象，且必须长度必须是6，否则将会异常
+print(urllib.parse.urlunparse(data))  # urlunparse()方法实现URL的构造
+# 输出为：
+# https://www.baidu.com/index.html;user?a=6#comment
 """
