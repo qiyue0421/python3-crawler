@@ -10,7 +10,7 @@ from urllib.request import HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler
 import http.cookiejar
 
 
-"""发送请求"""
+"""1、发送请求"""
 """urlopen()方法
 response = urllib.request.urlopen('https://www.python.org')  # 抓取python官网
 print(response.read().decode('utf-8'))
@@ -131,7 +131,7 @@ print(response.read().decode('utf-8'))
 """
 
 
-"""处理异常"""
+"""2、处理异常"""
 """URLError
 try:
     response = urllib.request.urlopen('http://www.imooc.com/qiyue.html')
@@ -152,7 +152,7 @@ else:  # 处理正常的逻辑
 """
 
 
-"""解析链接"""
+"""3、解析链接"""
 """urlparse()
 result = urllib.parse.urlparse('http://www.baidu.com/index.html;user?id=5#comment')  # parse模块定义了处理URL的标准接口，urlparse()方法实现URL的识别和分段
 print(type(result), result)
@@ -257,7 +257,7 @@ print(unquote(url))  # 还原中文字符
 """
 
 
-"""分析Robots协议"""
+"""4、分析Robots协议"""
 """robotparser
 from urllib.robotparser import RobotFileParser
 
