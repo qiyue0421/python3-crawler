@@ -177,3 +177,93 @@ print(urllib.parse.urlunparse(data))  # urlunparse()方法实现URL的构造
 # 输出为：
 # https://www.baidu.com/index.html;user?a=6#comment
 """
+
+
+"""urlsplit()
+from urllib.parse import urlsplit
+result = urlsplit('http://www.baidu.com/index.html;user?a=6#comment')  # 与urlparse()类似，但是不单独解析params这一部分（合并到path中），只返回5个结果
+print(result)
+# 输出为：
+# SplitResult(scheme='http', netloc='www.baidu.com', path='/index.html;user', query='a=6', fragment='comment')  # 返回的是一个元组，可以使用属性和索引来获取值 
+"""
+
+
+"""urlunsplit()
+from urllib.parse import urlunsplit
+data = ['http', 'www.baidu.com', 'index.html', 'a=6', 'comment']  # 接受的参数为一个可迭代对象，且必须长度必须是5，否则将会异常
+print(urlunsplit(data))  # 与urlunparse()类似，唯一区别是接受的参数个数必须为5
+# 输出为：
+# http://www.baidu.com/index.html?a=6#comment
+"""
+
+
+"""urljoin()
+from urllib.parse import urljoin  # 用于生成链接
+print(urljoin('http://www.baidu.com', 'FAQ.html'))  # 第一个参数为base_url，第二个参数为新的链接，该方法会分析base_url中的协议、域名、路径三个部分，并对新链接缺失的部分进行补充
+print(urljoin('http://www.baidu.com', 'https://cuiqingcai.com/FAQ.html'))  # 如果三个部分不在新链接，则使用base_url补充新链接；如果新链接中三个部分都存在，则直接使用新链接
+print(urljoin('http://www.baidu.com/about.html', 'https://cuiqingcai.com/FAQ.html'))
+print(urljoin('http://www.baidu.com/about.html', 'https://cuiqingcai.com/FAQ.html?question=2'))
+print(urljoin('http://www.baidu.com?wd=abc', 'https://cuiqingcai.com/index.php'))
+print(urljoin('www.baidu.com', '?category=2#comment'))
+print(urljoin('www.baidu.com#comment', '?category=2'))
+# 输出为：
+# http://www.baidu.com/FAQ.html
+# https://cuiqingcai.com/FAQ.html
+# https://cuiqingcai.com/FAQ.html
+# https://cuiqingcai.com/FAQ.html?question=2
+# https://cuiqingcai.com/index.php
+# www.baidu.com?category=2#comment
+# www.baidu.com?category=2
+"""
+
+
+"""urlencode()  # 序列化
+from urllib.parse import urlencode
+
+params = {
+    'name': 'germey',
+    'age': 22
+}
+base_url = 'http://www.baidu.com?'
+url = base_url + urlencode(params)  # 将字典类型序列化为GET请求参数
+print(url)
+# 输出为：
+# http://www.baidu.com?name=germey&age=22
+"""
+
+
+"""parse_qs()、parse_qsl()  # 反序列化
+from urllib.parse import parse_qs, parse_qsl
+
+query = 'name=germey&age=22'
+print(parse_qs(query))  # 将GET请求参数转化为字典
+print(parse_qsl(query))  # 将GET请求参数转化为元组
+# 输出为：
+# {'name': ['germey'], 'age': ['22']}
+# [('name', 'germey'), ('age', '22')]
+"""
+
+
+"""quote()、unquote()  # url编码
+from urllib.parse import quote, unquote
+
+keyword = '壁纸'
+url = 'https://www.baidu.com/s?wd=' + quote(keyword)  # 将中文字符转为URL编码
+print(url)
+print(unquote(url))  # 还原中文字符
+# 输出为：
+# https://www.baidu.com/s?wd=%E5%A3%81%E7%BA%B8
+# https://www.baidu.com/s?wd=壁纸
+"""
+
+
+"""分析Robots协议"""
+"""robotparser
+from urllib.robotparser import RobotFileParser
+
+rp = RobotFileParser()
+rp.set_url('https://www.jianshu.com/robots.txt')
+rp.read()
+print(rp.can_fetch('*', 'https://www.jianshu.com/p/b67554025d7d'))
+print(rp.can_fetch('*', 'https://www.jianshu.com/search?q=python&page=1&type=collections'))
+"""
