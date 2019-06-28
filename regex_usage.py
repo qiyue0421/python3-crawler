@@ -63,10 +63,74 @@ print(result.group())
 """
 
 
-"""search()"""
-#
+"""search()
+# 匹配时扫描整个字符串，然后返回第一个成功匹配的结果(注意只返回第一个匹配结果）
+html = '''<div id="songs-list">
+<li data-view="7">
+<a href="/2.mp2" singer="花粥">盗将行</a>
+</li>
+<li data-view="4" class="active">
+<a href="/3.mp3" singer="银临">无题雪</a>
+</li>
+<li data-view="6"><a href="/4.mp3" singer="任然">离眸</a></li>
+</div>
+'''
+result = re.search(r'<li.*?active.*?singer="(.*?)">(.*?)</a>', html, re.S)  # 构建正则表达式对文本进行匹配，提取需要的字符；绝大多数HTML文本都包含了换行符，尽量都需要加上re.S修饰符
+if result:
+    print(result.group(1), result.group(2))  # 使用group()方法进行分组的提取
+"""
 
 
+"""findall()
+# 获取匹配正则表达式的所有内容
+html = '''<div id="songs-list">
+<li data-view="7">
+<a href="/2.mp2" singer="花粥">盗将行</a>
+</li>
+<li data-view="4" class="active">
+<a href="/3.mp3" singer="银临">无题雪</a>
+</li>
+<li data-view="6"><a href="/4.mp3" singer="任然">离眸</a></li>
+</div>
+'''
+results = re.findall('<li.*?href="(.*?)".*?singer="(.*?)">(.*?)</a>', html, re.S)
+print(type(results), results)  # 返回一个元组列表
+for result in results:
+    print(result[0], result[1], result[2])  # 通过索引提取元组中的元素
+"""
 
 
+"""sub()
+# 使用正则表达式修改文本
+content = "fdafa31fdaf12321qwd12312"  # 去除文本中不需要的数字
+result = re.sub(r'\d+', '', content)  # sub()方法接受三个参数，第一个参数为正则表达式，此处设置为\d+匹配所有数字；第二个参数为替换成的字符串（如果为空表示去掉）；第三个参数是匹配文本
+print(result)
 
+html = '''<div id="songs-list">
+<li data-view="7">
+<a href="/2.mp2" singer="花粥">盗将行</a>
+</li>
+<li data-view="4" class="active">
+<a href="/3.mp3" singer="银临">无题雪</a>
+</li>
+<li data-view="6"><a href="/4.mp3" singer="任然">离眸</a></li>
+</div>
+'''
+html = re.sub(r'<a.*?>|</a>', '', html)  # 使用sub()方法除去a节点，只保留文本
+results = re.findall(r'<li.*?>(.*?)</li>', html, re.S)  # 简化了findall()方法中需要使用的正则表达式
+for result in results:
+    print(result.strip())
+"""
+
+
+"""compile()
+# 将正则表达式字符串编译成正则表达式对象，以便以后复用
+content1 = '2016-12-15 12:00'
+content2 = '2016-12-17 12:55'
+content3 = '2016-12-22 13:21'
+pattern = re.compile('\d{2}:\d{2}')  # 封装正则表达式
+result1 = re.sub(pattern, '', content1)
+result2 = re.sub(pattern, '', content2)
+result3 = re.sub(pattern, '', content3)
+print(result1, result2, result3)
+"""
