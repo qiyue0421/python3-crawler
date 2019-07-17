@@ -1,4 +1,5 @@
 import pymongo
+from redis import StrictRedis
 
 """非关系型数据库存储"""
 # NoSQL，全称Not Only SQL,意为不仅仅是SQL，泛指非关系型数据库。NoSQL是基于键值对的，而且不需要经过SQL层的解析，数据之间没有耦合性，性能非常高
@@ -132,4 +133,13 @@ print(result)
 print(result.deleted_count)  # 获取删除的数据条数
 result = collection.delete_many({'age': {'$lt': 25}})  # 删除所有符合条件的数据
 print(result.deleted_count)
+"""
+
+
+"""Redis"""
+# Redis是一个基于内存的高效的键值型非关系型数据库，存取效率极高，而且支持多种存储数据结构，使用非常简单
+"""连接
+redis = StrictRedis(host='localhost', port=6379, db=0, password='123456')
+redis.set('name', 'Bob')
+print(redis.get('name'))
 """
