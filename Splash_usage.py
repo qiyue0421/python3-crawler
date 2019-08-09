@@ -76,8 +76,100 @@
 """5、Splash对象属性"""
 # main()方法的第一个参数是splash，这个对象类似于Selenium中的WebDriver对象，可以调用它的一些属性和方法来控制加载加载过程
 
-"""args"""
-# 该属性
+"""args
+# 该属性可以获取加载时配置的参数，比如URL，如果为GET请求，它还可以获取GET请求参数；如果为POST请求，它可以获取表单提交的数据
+# function main(splash, args)  # args参数相当于splash.args属性
+#     local url = args.url
+# end
+#
+# 以上代码等价于
+# function main(splash)
+#     local url = splash.args.url
+# end
+"""
+
+
+"""js_enabled
+# 这个属性是Splash的JavaScript执行开关，可以将其配置为true或false来控制是否执行JavaScript代码，默认为true。
+# 我们尝试禁止执行JavaScript代码，运行结果会抛出异常
+# function main(splash, args)
+#     splash:go("http://www.baidu.com")
+#     splash.js_enabled = false
+#     local title = splash:evaljs("document.title")
+#     return {title=title}
+# end
+"""
+
+
+"""resource_timeout
+# 此属性可以设置加载的超时时间，单位是秒。如果设置为0或nil（类似python中的None），代表不检测超时。
+# function main(splash)
+#     splash.resource_timeout = 0.1  # 设置等待时间为0.1秒，如果期间没有得到响应，就会抛出异常
+#     assert(splash:go('https://www.taobao.com'))
+#     return splash:png()
+# end
+"""
+
+
+"""images_enabled
+# 此属性可以设置图片是否加载，默认情况下是加载的，禁用该属性后，可以节省网络流量并提高网页加载速度。
+# 但是需要注意的，禁用图片加载可能会影响到JavaScript渲染，因为禁用后它的外层DOM节点的高度会受影响，进而影响DOM节点的位置。
+# function main(splash, args)
+#     splash.images_enabled = false
+#     assert(splash:go('https://www.jd.com'))
+#     return {png=splash.png()}
+# end
+"""
+
+
+"""plugins_enabled
+# 此属性可以控制浏览器插件（比如Flash插件）是否开启。默认情况下，此属性为false，表示不开启
+# splash.plugins_enabled = true/false  # 控制开启和关闭
+"""
+
+
+"""scroll_position
+# 通过设置此属性，我们可以控制页面上下或左右滚动，比较常用
+# function main(splash, args)
+#     assert(splash:go('https://www.taobao.com'))
+#     splash.scroll_position = {y=400}  # 控制页面向下滚动400像素值
+#     return {png=splash:png()}
+# end
+
+# 如果要让页面左右滚动，可以传入x参数
+# splash.scroll_position = {x=100, y=200
+"""
+
+
+"""6、Splash对象的方法"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
