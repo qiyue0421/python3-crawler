@@ -139,7 +139,18 @@
 # url：请求URL
 # headers：可选参数，默认为空，请求头
 # follow_redirects：可选参数，表示是否启动自动重定向，默认为true
-
+#
+# 示例：
+#
+function main(splash, args)
+    local treat = require("treat")
+    local response = splash:http_get("http://httpbin.org/get")
+    return {
+        html = treat.as_string(response.body),
+        url = response.url,
+        status = response.status
+    }
+end
 
 
 
