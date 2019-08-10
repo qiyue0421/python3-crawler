@@ -127,3 +127,66 @@
 #     return snapshots
 # end
 """
+
+
+"""http_get()"""
+# 此方法可以模拟发送HTTP的GET请求
+#
+# 用法
+# response = splash:http_get{url, headers=nil, follow_redirects=true}
+#
+# 参数说明
+# url：请求URL
+# headers：可选参数，默认为空，请求头
+# follow_redirects：可选参数，表示是否启动自动重定向，默认为
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
