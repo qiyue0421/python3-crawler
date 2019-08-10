@@ -138,7 +138,7 @@
 # 参数说明
 # url：请求URL
 # headers：可选参数，默认为空，请求头
-# follow_redirects：可选参数，表示是否启动自动重定向，默认为
+# follow_redirects：可选参数，表示是否启动自动重定向，默认为true
 
 
 
