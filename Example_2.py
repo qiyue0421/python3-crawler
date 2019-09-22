@@ -19,7 +19,7 @@ import pymongo
 """
 
 
-"""5、获取商品列表"""
+"""5、获取商品列表
 browser = webdriver.Chrome()  # 浏览器对象初始化，赋值为browser对象
 wait = WebDriverWait(browser, 10)  # 指定最长等待时间为10秒，如果超时，直接抛出超时异常
 KEYWORD = 'iPad'  # 要搜索的关键字
@@ -83,3 +83,4 @@ def main():  # 遍历每一页
 
 
 main()
+"""
