@@ -1,18 +1,23 @@
 # 代理的使用
+# 利用代理可以解决目标网站封IP的问题
 from urllib.error import URLError
 from urllib.request import ProxyHandler, build_opener
 import socks
 import socket
 from urllib import request
 import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import zipfile
 
 
-"""1、获取代理
+"""1、代理的设置"""
+"""获取代理
 # 网站上有很多的代理，比如西刺代理：http://www.yunlianip.cn/，注册号即可使用
 """
 
 
-"""2、urllib
+"""urllib
 # 假设本地安装了一部代理软件，它会在本地9743端口上创建HTTP服务，即代理为127.0.0.1:9743，另外还会在9742端口创建SOCKS代理服务，即代理127.0.0.1:9742
 
 '''如果代理是HTTP类型
@@ -89,5 +94,96 @@ try:
     print(response.text)
 except requests.exceptions.ConnectionError as e:
     print('Error', e.args)
+'''
+"""
+
+
+"""Selenium
+# Selenium同样可以设置代理，包括两种方式：一种是有界面浏览器，以Chrome为例；另一种是无界面浏览器，以PhantomJS为例
+
+'''Chrome
+proxy = '127.0.0.1:9743'
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument('--proxy-server=http://' + proxy)
+browser = webdriver.Chrome(chrome_options=chrome_options)
+browser.get('http://httpbin.org/get')
+'''
+
+'''Chrome认证代理（复杂）
+ip = '127.0.0.1'
+port = 9743
+username = 'foo'
+password = 'bar'
+
+manifest_json = '''
+{
+    "version": "1.0.0",
+    "manifest_version": 2,
+    "name": "Chrome Proxy",
+    "permissions": [
+        "proxy",
+        "tabs",
+        "unlimitedStorage",
+        "storage",
+        "<all_urls>",
+        "webRequest",
+        "webRequestBlocking"
+    ],
+    "background": {
+        "scripts": ["background.js"]
+    }
+}
+'''
+
+background_js = '''
+var config = {
+    mode: "fixed_servers",
+    rules: {
+        singleProxy: {
+            scheme: "http",
+            host: "%(ip)s",
+            port: %(port)s
+            }
+        }
+    }
+
+chrome.proxy.settings.set({value: config, scope: "regular"}, function() {});
+
+function callbackFn(details) {
+    return {
+        authCredentials: {
+            username: "%(username)s",
+            password: "%(password)s"
+        }
+    }
+}
+
+chrome.webRequest.onAuthRequired.addListener(
+    callbackFn,
+    {urls: ["<all_urls>"]},
+    ['blocking']
+)
+''' % {'ip': ip, 'port': port, 'username': username, 'password': password}
+
+plugin_file = 'proxy_auth_plugin.zip'
+with zipfile.ZipFile(plugin_file, 'w') as zp:
+    zp.writestr("manifest.json", manifest_json)
+    zp.writestr("background.js", background_js)
+chrome_options = Options()
+chrome_options.add_argument("--start-maximized")
+chrome_options.add_extension(plugin_file)
+browser = webdriver.Chrome(chrome_options=chrome_options)
+browser.get('http://httpbin.org/get')
+'''
+
+'''PhantomJS
+service_args = [
+    '--proxy=127.0.0.1:9743',
+    '--proxy-type=http'
+    '--proxy-auth=username:password'  # 设置认证
+]
+browser = webdriver.PhantomJS(service_args=service_args)
+browser.get('http://httpbin.org/get')
+print(browser.page_source)
 '''
 """
