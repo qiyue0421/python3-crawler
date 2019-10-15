@@ -138,6 +138,7 @@ print(result.deleted_count)
 
 """Redis"""
 # Redis是一个基于内存的高效的键值型非关系型数据库，存取效率极高，而且支持多种存储数据结构，使用非常简单
+# 使用Redis Desktop Manager可视化工具更加方便
 """连接
 redis = StrictRedis(host='localhost', port=6379, db=0, password='123456')
 redis.set('name', 'Bob')
