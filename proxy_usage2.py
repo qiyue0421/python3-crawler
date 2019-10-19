@@ -17,6 +17,9 @@ except Exception as e:
     from aiohttp import ClientProxyConnectionError as ProxyConnectionError
 
 """2、搭建一个高效易用的代理池"""
+"""准备工作"""
+# Redis数据库并启动服务，另外安装aiohttp、requests、redis-py、pyquery、Flask库等
+
 """代理池的目标
 # 基本模块分为4块：存储模块、获取模块、检测模块、接口模块
 # 存储模块：负责存储抓取下来的代理。首先要保证代理不重复，要标识代理的可用情况，还要动态实时处理每个代理，所以一种比较高效的存储方式是使用Redis的Sorted Set，即有序集合
@@ -83,7 +86,7 @@ class RedisClient(object):  # RedisClient类用于操作Redis的有序集合
         :return: 添加结果
         """
         if not self.db.zscore(REDIS_KEY, proxy):
-            return self.db.zadd(REDIS_KEY, score, proxy)
+            return self.db.zadd(REDIS_KEY, {proxy:score})
 
     def random(self):
         """
@@ -110,7 +113,7 @@ class RedisClient(object):  # RedisClient类用于操作Redis的有序集合
         score = self.db.zscore(REDIS_KEY, proxy)
         if score and score > MIN_SCORE:
             print('代理', proxy, '当前分数', score, '减1')
-            return self.db.zincrby(REDIS_KEY, proxy, -1)
+            return self.db.zincrby(REDIS_KEY, -1, proxy)
         else:
             print('代理', proxy, '当前分数', score, '移除')
             return self.db.zrem(REDIS_KEY, proxy)
@@ -130,7 +133,7 @@ class RedisClient(object):  # RedisClient类用于操作Redis的有序集合
         :return: 设置结果
         """
         print('代理', proxy, '可用，设置为', MAX_SCORE)
-        return self.db.zadd(REDIS_KEY, MAX_SCORE, proxy)
+        return self.db.zadd(REDIS_KEY, {proxy: MAX_SCORE})
 
     def count(self):
         """
@@ -215,35 +218,38 @@ class Crawler(object, metaclass=ProxyMetaclass):  # 抓取代理类
                     port = tr.find('td:nth-child(2)').text()
                     yield ':'.join([ip, port])
 
-    def crawl_proxy360(self):
+    def crawl_kuaidaili(self):
         """
-        获取代理66
+        获取快代理
         :return：代理
         """
-        start_url = 'http://www.proxy360.cn/Region/China'
-        print('Crawling', start_url)
+        start_url = 'https://www.kuaidaili.com/free/inha/'
         html = get_page(start_url)
         if html:
             doc = pq(html)
-            lines = doc('div[name="list_proxy_ip"]').items()
-            for line in lines:
-                ip = line.find('.tbBottomLine:nth-child(1)').text()
-                port = line.find('.tbBottomLine:nth-child(2)').text()
+            trs = doc('.table tbody tr:gt(0)').items()
+            for tr in trs:
+                ip = tr.find('td:nth-child(1)').text()
+                port = tr.find('td:nth-child(2)').text()
                 yield ':'.join([ip, port])
 
-    def crawl_goubanjia(self):
+    def crawl_xicidaili(self, page_count=4):
         """
-        获取Goubanjia
-        :return: 代理
+        获取xicidaili
+        :return：代理
         """
-        start_url = 'http://www.goubanjia.com/free/gngn/index.shtml'
-        html = get_page(start_url)
-        if html:
-            doc = pq(html)
-            tds = doc('td.ip').items()
-            for td in tds:
-                td.find('p').remove()
-                yield td.text().replace(' ', '')
+        start_url = 'https://www.xicidaili.com/wt/{}'
+        urls = [start_url.format(page) for page in range(1, page_count + 1)]
+        for url in urls:
+            print('Crawling', url)
+            html = get_page(url)
+            if html:
+                doc = pq(html)
+                trs = doc('#ip_list tr:gt(0)').items()
+                for tr in trs:
+                    ip = tr.find('td:nth-child(2)').text()
+                    port = tr.find('td:nth-child(3)').text()
+                    yield ':'.join([ip, port])
 
 
 # 设定代理池阈值
@@ -267,7 +273,7 @@ class Getter:  # 获取器类
     def run(self):  # 动态地调用所有以crawl开头的方法，然后获取抓取到的代理，将其加入到数据库存储起来
         print('获取器开始执行')
         if not self.is_over_threshold():
-            for callback_label in range(self.crawler.__CrawlerFuncCount__):
+            for callback_label in range(self.crawler.__CrawlFuncCount__):
                 callback = self.crawler.__CrawlFunc__[callback_label]
                 proxies = self.crawler.get_proxies(callback)
                 for proxy in proxies:
@@ -418,13 +424,40 @@ class Scheduler:
         if TESTER_ENABLED:
             tester_process = Process(target=self.schedule_tester)
             tester_process.start()
+
         if GETTER_ENABLED:
             getter_process = Process(target=self.schedule_getter)
             getter_process.start()
+
         if API_ENABLED:
             api_process = Process(target=self.schedule_api)
             api_process.start()
 
 
-scheduler = Scheduler()
-scheduler.run()
+if __name__ == '__main__':  # 必须放在main模块内，不然会报错
+    scheduler = Scheduler()
+    scheduler.run()
+    """访问web页面提供的接口随机获取一个可用代理
+    PROXY_POOL_URL = 'http://localhost:5555/random'
+
+
+    def get_proxy():
+        try:
+            response = requests.get(PROXY_POOL_URL)
+            if response.status_code == 200:
+                return response.text
+        except ConnectionError:
+            return None
+
+
+    proxy = get_proxy()
+    proxies = {
+        'http': 'http://' + proxy,
+        'https': 'https://' + proxy,
+    }
+    try:
+        response = requests.get('http://httpbin.org/get', proxies=proxies)
+        print(response.text)
+    except requests.exceptions.ConnectionError as e:
+        print('Error', e.args)
+    """
