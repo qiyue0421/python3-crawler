@@ -1,8 +1,11 @@
 # 使用代理爬取微信公众号文章
 import redis
-from requests import Request
+import requests
+from requests import Request, Session,ReadTimeout, ConnectionError
+from urllib.parse import urlencode
 from pickle import dumps, loads
-
+from pyquery import PyQuery as pq
+import pymysql
 
 """1、目标"""
 # 利用代理爬取微信公众号的文章，提取正文、发表日期、公众号等内容，爬取来源是搜狗微信，其链接为 https://weixin.sogou.com/，然后把爬取结果保存到MySQL数据库
@@ -60,6 +63,7 @@ REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 REDIS_PASSWORD = '123456'
 REDIS_KEY = 'weixin'
+PROXY_POOL_URL = 'http://127.0.0.1:5555/random'
 
 
 class RedisQueue:
@@ -97,4 +101,226 @@ class RedisQueue:
         return self.db.llen(REDIS_KEY) == 0  # 判断队列长度是否为0
 
 
-"""修改代理池"""
+"""6、实现MySQL存储模块"""
+MYSQL_HOST = 'localhost'
+MYSQL_PORT = 3306
+MYSQL_USER = 'root'
+MYSQL_PASSWORD = '123456'
+MYSQL_DATABASE = 'weixin'
+# 手动创建数据库weixin
+"""
+create database weixin; 
+"""
+
+# 新建一个数据表名为article
+"""
+create table `article` (
+    `id` int(11) not null,
+    `title` varchar(255) not null,
+    `content` text not null,
+    `data` varchar(255) not null ,
+    `wechat` varchar(255) not null ,
+    `nickname` varchar(255) not null
+) default charset=utf8;
+alter table `article` add primary key (`id`);
+"""
+
+
+class MySQL:
+    def __init__(self, host=MYSQL_HOST, username=MYSQL_USER, password=MYSQL_PASSWORD, port=MYSQL_PORT, database=MYSQL_DATABASE):
+        """
+        MySQL初始化
+        :param host:
+        :param username:
+        :param password:
+        :param port:
+        :param database:
+        """
+        try:
+            self.db = pymysql.connect(host, username, password, database, charset='utf8', port=port)
+            self.cursor = self.db.cursor()
+        except pymysql.MySQLError as e:
+            print(e.args)
+
+    def insert(self, table, data):
+        """
+        插入数据
+        :param table:
+        :param data:
+        :return:
+        """
+        keys = ','.join(data.keys())
+        value = ','.join(['%s'] * len(data))
+        sql_query = 'insert into %s (%s) values (%s)' % (table, keys, value)
+        try:
+            self.cursor.execute(sql_query, tuple(data.values()))
+            self.db.commit()
+        except pymysql.MySQLError as e:
+            print(e.args)
+            self.db.rollback()
+
+
+"""7、第一个请求"""
+# 构造第一个请求放到队列里以供调度
+
+
+class Spider:
+    # 设置全局变量
+    base_url = 'https://weixin.sogou.com/weixin'
+    keyword = 'python'
+    headers = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Cache-Control': 'max-age=0',
+        'Connection': 'keep-alive',
+        'Cookie': 'ABTEST=4|1571841717|v1; IPLOC=CN4404; SUID=9FEC49DF4842910A000000005DB066B5; SUID=9FEC49DF3120910A000000005DB066B5; weixinIndexVisited=1; SUV=006315DEDF49EC9F5DB066B6BA46D980; '
+                  'sct=1; PHPSESSID=90i0r29ndggeup072jtbdfir53; SNUID=E49732A47B7EEED254975B6A7B8AFE3C; successCount=1|Thu, 24 Oct 2019 13:46:17 GMT; JSESSIONID=aaa4hMDT2oPOwdMdfr93w; '
+                  'ppinf=5|1571924583|1573134183'
+                  '|dHJ1c3Q6MToxfGNsaWVudGlkOjQ6MjAxN3x1bmlxbmFtZTo0OkZpbmV8Y3J0OjEwOjE1NzE5MjQ1ODN8cmVmbmljazo0OkZpbmV8dXNlcmlkOjQ0Om85dDJsdU0yZ2p3R3ZvSV8yTW5CY1lxWTNsQUlAd2VpeGluLnNvaHUuY29tfA; '
+                  'pprdig=sAUW5bZURcAs5cCQNo5DSGpMN401FEY49f9eibusHbhBvd34_lVZnMJjvKN_BrH6uDeYOMgMWty_QQHx8ajZQzEb-AfXJGWC8FIjiS0QkmQST8SGd75vm-kx1U887fKnDLZxHXD4HV1ZVNgtqYQtfA5qKe8xQ-J9J58UXlmFZoQ'
+                  '; sgid=06-41818573-AV2xqme8NOB1iafVfZEQ1vd4; ppmdig=157192458300000075cc6c1e341c63703a29581762789e66 ',
+        'Host': 'weixin.sogou.com',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36'
+    }
+    session = Session()  # 执行请求
+    queue = RedisQueue()  # 存储请求
+    mysql = MySQL()
+    VALID_STATUSES = [200]  # 成功状态码
+    MAX_FAILED_TIME = 20  # 最大请求失败次数
+
+    def start(self):
+        """
+        初始化工作
+        :return:
+        """
+        # 全局更新Headers
+        self.session.headers.update(self.headers)
+        start_url = self.base_url + '?' + urlencode({'query': self.keyword, 'type': 2})  # 构造起始URL
+
+        # 构造WeixinRequest对象，回调函数是Spider类的parse_index()方法，也就是当这个请求成功以后就用parse_index()来处理解析
+        weixin_request = WeixinRequest(url=start_url, callback=self.parse_index, need_proxy=True)
+
+        # 调度第一个请求
+        self.queue.add(weixin_request)
+
+    def get_proxy(self):  # 获取随机可用代理
+        """
+        从代理池获取代理
+        :return:
+        """
+        try:
+            response = requests.get(PROXY_POOL_URL)
+            if response.status_code == 200:
+                print('Get Proxy', response.text)
+                return response.text
+            return None
+        except requests.ConnectionError:
+            return None
+
+    def schedule(self):
+        """
+        调度请求
+        :return:
+        """
+
+        while not self.queue.empty():  # 队列不为空
+            weixin_request = self.queue.pop()  # 取出下一个请求
+            callback = weixin_request.callback
+            print('Schedule', weixin_request.url)
+            response = self.request(weixin_request)  # 执行请求
+            if response and response.status_code in self.VALID_STATUSES:
+                results = list(callback(response))  # 获取本页所有微信文章链接
+                if results:
+                    for result in results:
+                        print('New Result', result)
+                        if isinstance(result, WeixinRequest):  # 结果是WeixinRequest，就将其重新加入队列
+                            self.queue.add(result)
+                        if isinstance(result, dict):  # 如果是文章详情页的内容，则存储到mysql中
+                            self.mysql.insert('articles', result)
+                else:
+                    self.error(weixin_request)
+            else:
+                self.error(weixin_request)
+
+    def parse_index(self, response):
+        """
+        解析索引页
+        :return: 新的响应
+        """
+        doc = pq(response.text)
+        items = doc('.news-box .news-list li .txt-box h3 a').items()
+        for item in items:
+            url = item.attr('href')
+            weixin_request = WeixinRequest(url=url, callback=self.parse_detail)
+            yield weixin_request
+        next = doc('#sogou_next').attr('href')
+        if next:
+            url = self.base_url + str(next)
+            weixin_request = WeixinRequest(url=url, callback=self.parse_index, need_proxy=True)
+            yield weixin_request
+
+    def parse_detail(self, respnse):
+        """
+        解析详情页
+        :param respnse: 响应
+        :return: 微信公众号文章内容
+        """
+        doc = pq(respnse.text)
+        data = {
+            'title': doc('.rich_media_title').text(),
+            'content': doc('.rich_media_content').text(),
+            'date': doc('#publish_time').text(),
+            'nickname': doc('#js_profile_qrcode > div > strong').text(),
+            'wechat': doc('#js_profile_qrcode > div > p:nth-child(1) > span').text()
+        }
+        yield data
+
+    def request(self, weixin_request):
+        """
+        执行请求
+        :param weixin_request: 请求
+        :return: 响应
+        """
+        try:
+            if weixin_request.need_proxy:  # 判断是否需要代理
+                proxy = self.get_proxy()  # 调用get_proxy()方法获取代理
+                # proxy = '211.101.154.105:43598'
+                if proxy:
+                    proxies = {
+                        'http': 'http://' + proxy,
+                        'https': 'https://' + proxy
+                    }
+                    print(self.session.send(weixin_request.prepare(), timeout=weixin_request.timeout, allow_redirects=False, proxies=proxies))
+                    return self.session.send(weixin_request.prepare(), timeout=weixin_request.timeout, allow_redirects=False, proxies=proxies)
+            return self.session.send(weixin_request.prepare(), timeout=weixin_request.timeout, allow_redirects=False)
+        except (ConnectionError, ReadTimeout) as e:
+            print(e.args)
+            return False
+
+    def error(self, weixin_request):
+        """
+        错误处理
+        :param weixin_request: 请求
+        :return:
+        """
+        weixin_request.fail_time = weixin_request.fail_time + 1
+        print('Request Failed', weixin_request.fail_time, 'Times', weixin_request.url)
+        if weixin_request.fail_time < self.MAX_FAILED_TIME:
+            self.queue.add(weixin_request)
+
+    def run(self):
+        """
+        入口
+        :return:
+        """
+        self.start()
+        self.schedule()
+
+
+if __name__ == '__main__':
+    spider = Spider()
+    spider.run()
+
+# 总的来说，大部分模块基本实现，但是现阶段搜狗的反爬虫太厉害导致程序未能运行成功，实力有限暂且学习吧！
