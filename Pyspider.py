@@ -1,3 +1,6 @@
+from pyspider.libs.base_handler import *
+
+
 """1、pyspider框架介绍"""
 # pyspider是由国人binux编写的强大的网络爬虫系统，其GitHub地址为 https://github.com/binux/pyspider ，官方文档地址为：http://docs.pyspider.org/
 # pyspider带有强大的WebUI、脚本编辑器、任务监控器、项目管理器以及结果处理器，它支持多种数据库后端、多种消息队列、JavaScript渲染页面的爬取，使用起来非常方便
@@ -40,12 +43,13 @@
 
 
 """2、pyspider的基本使用"""
-"""目标"""
+"""目标
 # 爬取去哪儿网的旅游攻略，链接为 http://travel.qunar.com/travelbook/list.htm
 # 获取所有攻略的作者、标题、出发日期、人均费用、攻略正文，存储到MongoDB
+"""
 
 
-"""准备工作"""
+"""准备工作
 # 安装好pyspider、PhantomJS和MongoDB
 # pyspider安装：pip install pyspider
 # python3.7使用pyspider需要修改部分代码：https://www.jianshu.com/p/b3196d86d66f
@@ -55,8 +59,39 @@
 
 # MongoDB下载地址：https://www.mongodb.org/downloads
 # MongoDB安装教程：https://www.cnblogs.com/knowledgesea/p/4631712.html
+"""
 
 
-"""启动pyspider"""
+"""启动pyspider
 # 执行命令启动pyspider：pyspider all
 # WebUI运行在 http://localhost:5000
+"""
+
+
+"""创建项目
+# 新建一个项目，点击右边的Create按钮，在弹出的浮窗里输入项目的名称和爬取的链接，再点击Create按钮，这样就成功创建了一个项目
+# 接下来会看到pyspider的项目编辑和调试页面，左侧就是代码的调试页面，点击左侧右上角的run单步调试爬虫程序，在左侧下半部分可以预览当前的爬取页面。
+# 右侧是代码编辑页面，我们可以直接编辑代码和保存代码，不需要借助IDE，代码如下：
+
+
+class Handler(BaseHandler):  # Handler类就是爬虫的主类，在此定义爬取、解析、存储的逻辑
+    crawl_config = {  # 项目的所有爬取配置在此定义，比如Headers、设置代理，配置之后全局生效
+    }
+
+    @every(minutes=24 * 60)
+    def on_start(self):  # 爬取入口
+        # crawl()方法创建请求，第一个参数是爬取的URL，callback参数指定爬取成功后将响应response交由index_page()方法解析
+        self.crawl('http://travel.qunar.com/travelbook/list.htm', callback=self.index_page)
+
+    @config(age=10 * 24 * 60 * 60)
+    def index_page(self, response):  # 实现了两个功能：一是将爬取的结果进行解析；二是生成新的爬取请求
+        for each in response.doc('a[href^="http"]').items():  # 使用pyquery解析页面，获取页面所有的链接，遍历链接
+            self.crawl(each.attr.href, callback=self.detail_page)  # 再次调用crawl()方法生成新的爬取请求，callback为detail_page()方法
+
+    @config(priority=2)
+    def detail_page(self, response):  # 抓取详情页的信息，不会产生新的请求
+        return {
+            "url": response.url,
+            "title": response.doc('title').text(),
+        }
+"""
