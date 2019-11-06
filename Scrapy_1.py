@@ -189,8 +189,100 @@ class QuotesSpider(scrapy.Spider):
 """
 
 
-"""运行"""
+"""运行
 # 进入目录，运行如下命令：
 # scrapy crawl quotes
 # 就可以看到结果了
 #
+# 分析结果：
+# ①、首先，Scrapy输出了当前的版本号以及正在启动的项目名称。
+# ②、接着输出了当前settings.py中一些重写后的配置
+# ③、然后输出了当前所应用的Middlewares和Pipelines。Middlewares默认是启用的，可以在settings.py中修改。Pipelines默认是空，同样也可以在settings.py中配置
+# ④、接下来就是输出各个页面的抓取结果了，可以看到爬虫一边解析一边翻页，直到所有内容抓取完毕，然后终止
+"""
+
+
+"""保存到文件
+# Scrapy提供的Feed Exports可以轻松将抓取结果输出。例如，将结果保存成JSON文件，可以执行以下命令:
+# scrapy crawl quotes -o quotes.json
+# 命令运行后，项目内多出了一个quotes.json文件，文件包含了刚才抓取的所有内容，内容是JSON格式
+#
+# 输出格式还支持很多种，例如csv、xml、pickle、marshal等，还支持ftp、s3等远程输出，另外还可以通过自定义ItemExporter来实现其他的输出：
+# scrapy crawl quotes -o quotes.csv
+# scrapy crawl quotes -o quotes.xml
+# scrapy crawl quotes -o quotes.pickle
+# scrapy crawl quotes -o quotes.marshal
+# scrapy crawl quotes -o ftp://user:pass@ftp.example/path/to/quotes.csv
+"""
+
+
+"""使用Item Pipeline
+# 如果想进行更复杂的操作，如将结果保存到MongoDB数据库，或者筛选某些有用的Item，则我们可以定义Item Pipeline来实现
+# Item Pipeline为项目管道，当Item生成后，它会自动被送到Item Pipeline进行处理，我们常用Item Pipeline来做如下操作：
+# ①、清理HTML数据
+# ②、验证爬取数据，检查爬取字段
+# ③、查重并丢弃重复内容
+# ④、将爬取结果保存到数据库
+#
+# 要实现Item Pipeline很简单，只需要定义一个类并实现process_item()方法即可。启用Item Pipeline后，Item Pipeline会自动调用这个方法。process_item()方法必须返回包含数据的字典或Item对象，
+# 或者抛出DropItem异常。process_item()方法有两个参数，一个参数是item，每次Spider生成的Item都会作为参数传递过来；另一个参数是Spider，就是Spider的实例
+#
+# 例如，实现一个Item Pipeline，筛掉text长度大于50的Item，并将结果保存到MongoDB.
+# 修改项目里的pipelines.py文件，之前用命令行自动生成的文件内容可以删掉，增加一个TextPipeline类，内容如下：
+
+from scrapy.exceptions import DropItem
+
+
+class TextPipeline(object):
+    def __init__(self):
+        self.limit = 50  # 定义限制长度为50
+
+    def process_item(self, item, spider):
+        if item['text']:  # 首先判断item的text属性是否存在
+            if len(item['text']) > self.limit:  # 判断长度是否大于50
+                item['text'] = item['text'][0:self.limit].rstrip() + '...'  # 大于50则进行截断然后拼接省略号
+            return item
+        else:  # 属性不存在则抛出DropItem异常
+            return DropItem('Missing Text')
+
+# 接下来，将处理后的item存入MongoDB，定义另外一个Pipeline，同样在pipelines.py中，实现一个MongoPipeline类，其内容如下：
+
+import pymongo
+
+
+class MongoPipeline(object):
+    def __init__(self, mongo_uri, mongo_db):
+        self.mongo_uri = mongo_uri
+        self.mongo_db = mongo_db
+
+    @classmethod
+    def from_crawler(cls, crawler):  # 获取settings.py中的配置
+        return cls(mongo_uri=crawler.settings.get('MONGO_URI'),
+                   mongo_db=crawler.settings.get('MONGO_DB')
+                   )
+
+    def open_spider(self, spider):  # 当Spider开启时，这个方法被调用
+        self.client = pymongo.MongoClient(self.mongo_uri)
+        self.db = self.client[self.mongo_db]
+
+    def process_item(self, item, spider):  # 数据插入操作
+        name = item.__class__.__name__
+        self.db[name].insert(dict(item))
+        return item
+
+    def close_spider(self, spider):  # 当Spider关闭时，这个方法被调用
+        self.client.close()
+
+# 定义好TextPipeline和MongoPipeline这两个类后，需要在settings.py中使用它们，在settings.py中加入如下内容：
+
+ITEM_PIPELINES = {  # 键名是Pipeline的类的名称，键值是调用优先级，是一个数字，数字越小则对应的Pipeline越先被调用
+    'tutorial.pipelines.TextPipeline': 300,
+    'tutorial.pipelines.MongoPipeline': 400,
+}
+MONGO_URI = 'localhost'
+MONGO_DB = 'tutorial'
+
+# 再重新执行爬取，命令如下：
+# scrapy crawl quotes
+# 爬取结束后，MongoDB中创建了一个tutorial的数据库、QuoteItem的表。
+"""
